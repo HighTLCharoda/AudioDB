@@ -1,7 +1,9 @@
 # Импорт нужных компонентов
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QMenu, QMenuBar
-from PyQt5.QtCore import QRect, QSize
+import os
+from PySide6.QtWidgets import QApplication, QMainWindow, QMenu, QMenuBar
+from PySide6.QtCore import QRect, QSize, QTranslator, QLocale, QLibraryInfo
+from PySide6.QtGui import QIcon, QScreen, QAction  # QAction moved here
 
 # Создаём главное окно
 class AudioDBMainWindow(QMainWindow):
@@ -19,9 +21,9 @@ class AudioDBMainWindow(QMainWindow):
         
     def setDefaultWindowSize(self):
         # Получаем размер доступного экрана
-        screen_rect = QApplication.desktop().availableGeometry()
-        screen_width = screen_rect.width()
-        screen_height = screen_rect.height()
+        screen = QApplication.primaryScreen().availableGeometry()
+        screen_width = screen.width()
+        screen_height = screen.height()
         
         # Вычисляем размер окна (80% от размера экрана)
         window_width = int(screen_width * 0.8)
@@ -39,51 +41,117 @@ class AudioDBMainWindow(QMainWindow):
         menubar = self.menuBar()
         
         # Создаем меню "Файл"
-        file_menu = menubar.addMenu('Файл')
+        file_menu = menubar.addMenu(self.tr('File'))
         
         # Добавляем действия в меню "Файл"
-        open_action = QAction('Открыть', self)
-        open_action.setStatusTip('Открыть файл')
+        open_action = QAction(self.tr('Open'), self)
+        open_action.setStatusTip(self.tr('Open file'))
         file_menu.addAction(open_action)
         
-        save_action = QAction('Сохранить', self)
-        save_action.setStatusTip('Сохранить файл')
+        save_action = QAction(self.tr('Save'), self)
+        save_action.setStatusTip(self.tr('Save file'))
         file_menu.addAction(save_action)
         
         file_menu.addSeparator()
         
-        exit_action = QAction('Выход', self)
-        exit_action.setStatusTip('Выйти из приложения')
+        exit_action = QAction(self.tr('Exit'), self)
+        exit_action.setStatusTip(self.tr('Exit application'))
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
         
         # Создаем меню "Правка"
-        edit_menu = menubar.addMenu('Правка')
+        edit_menu = menubar.addMenu(self.tr('Edit'))
         
         # Добавляем действия в меню "Правка"
-        undo_action = QAction('Отменить', self)
+        undo_action = QAction(self.tr('Undo'), self)
         edit_menu.addAction(undo_action)
         
-        redo_action = QAction('Повторить', self)
+        redo_action = QAction(self.tr('Redo'), self)
         edit_menu.addAction(redo_action)
         
         # Создаем меню "Вид"
-        view_menu = menubar.addMenu('Вид')
+        view_menu = menubar.addMenu(self.tr('View'))
         
         # Добавляем действия в меню "Вид"
-        fullscreen_action = QAction('Полный экран', self)
+        fullscreen_action = QAction(self.tr('Fullscreen'), self)
         view_menu.addAction(fullscreen_action)
         
+        # Создаем меню "Язык"
+        language_menu = menubar.addMenu(self.tr('Language'))
+        
+        # Добавляем действия для выбора языка
+        english_action = QAction('English', self)
+        english_action.triggered.connect(lambda: self.changeLanguage('en'))
+        language_menu.addAction(english_action)
+        
+        russian_action = QAction('Русский', self)
+        russian_action.triggered.connect(lambda: self.changeLanguage('ru'))
+        language_menu.addAction(russian_action)
+        
         # Создаем меню "Справка"
-        help_menu = menubar.addMenu('Справка')
+        help_menu = menubar.addMenu(self.tr('Help'))
         
         # Добавляем действия в меню "Справка"
-        about_action = QAction('О программе', self)
+        about_action = QAction(self.tr('About'), self)
         help_menu.addAction(about_action)
+    
+    def changeLanguage(self, language):
+        """Изменяет язык приложения"""
+        # Получаем экземпляр приложения
+        app = QApplication.instance()
+        
+        # Удаляем текущий переводчик, если он есть
+        if hasattr(app, 'translator'):
+            app.removeTranslator(app.translator)
+        
+        # Создаем новый переводчик
+        app.translator = QTranslator()
+        
+        # Загружаем файл перевода
+        if language == 'en':
+            # Для английского языка (по умолчанию)
+            pass
+        elif language == 'ru':
+            # Загружаем русский перевод
+            translation_file = os.path.join('translations', 'audiodb_ru.qm')
+            if os.path.exists(translation_file):
+                app.translator.load(translation_file)
+                app.installTranslator(app.translator)
+        
+        # Обновляем интерфейс
+        self.retranslateUi()
+    
+    def retranslateUi(self):
+        """Обновляет все переводимые строки в интерфейсе"""
+        # Обновляем заголовок окна
+        self.setWindowTitle(self.tr("AudioDB"))
+        
+        # Обновляем меню
+        menubar = self.menuBar()
+        menus = menubar.findChildren(QMenu)
+        
+        # Очищаем и пересоздаем меню
+        menubar.clear()
+        self.createMenuBar()
 
 # Запуск приложения
 if __name__ == "__main__":
     app = QApplication(sys.argv)  # Создаём приложение
-    window = AudioDBMainWindow()        # Создаём окно
+    
+    # Создаем переводчик
+    app.translator = QTranslator()
+    
+    # Определяем текущую локаль системы
+    locale = QLocale.system().name()
+    
+    # По умолчанию используем английский язык
+    # Если локаль русская, пытаемся загрузить русский перевод
+    if locale.startswith('ru'):
+        translation_file = os.path.join('translations', 'audiodb_ru.qm')
+        if os.path.exists(translation_file):
+            app.translator.load(translation_file)
+            app.installTranslator(app.translator)
+    
+    window = AudioDBMainWindow()  # Создаём окно
     window.show()                 # Показываем окно с отступами
-    sys.exit(app.exec_())         # Запускаем цикл событий
+    sys.exit(app.exec())          # Запускаем цикл событий
