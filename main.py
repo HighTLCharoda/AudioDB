@@ -1,12 +1,19 @@
 # Импорт нужных компонентов
 import sys
 import os
-from PySide6.QtWidgets import QApplication, QMainWindow, QMenu, QMenuBar
-from PySide6.QtCore import QRect, QSize, QTranslator, QLocale, QLibraryInfo
-from PySide6.QtGui import QIcon, QScreen, QAction  # QAction moved here
-
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QMenu, QMenuBar, QWidget, 
+    QHBoxLayout, QSplitter, QTextEdit, QListWidget, QGridLayout,
+    QFrame, QLabel, QGraphicsView, QGraphicsScene, QStatusBar
+)
+from PySide6.QtCore import QRect, QSize, QTranslator, QLocale, Qt
+from PySide6.QtGui import QIcon, QScreen, QAction, QColor, QPalette
 # Создаём главное окно
 class AudioDBMainWindow(QMainWindow):
+    # Class-level constants
+    LEFT_PANEL_MIN_WIDTH = 200
+    SNAP_THRESHOLD = 50
+
     def __init__(self):
         super().__init__()  # Инициализация окна
         
@@ -19,6 +26,73 @@ class AudioDBMainWindow(QMainWindow):
         # Создание меню бара
         self.createMenuBar()
         
+        # Создание статусбара
+        self.createStatusBar()
+        
+        # Создание разделенного интерфейса
+        self.setupSplitInterface()
+
+    def setupSplitInterface(self):
+    
+        # Создаем центральный виджет
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+    
+        # Создаем горизонтальный лейаут
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(4, 4, 4, 4)  # Убираем отступы
+    
+        # Modify left widget settings
+        left_widget = QWidget()
+        left_widget.setMinimumWidth(self.LEFT_PANEL_MIN_WIDTH)
+        left_layout = QHBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+    
+        # Create splitter with custom behavior
+        splitter = CustomSplitter(Qt.Horizontal, self.LEFT_PANEL_MIN_WIDTH)
+    
+        right_widget = QWidget()
+        right_layout = QGridLayout(right_widget)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+    
+        # Добавляем фоновые элементы в левую часть
+    
+        # Вариант 1: QFrame с установленным стилем
+        left_background = QFrame()
+        left_background.setStyleSheet("background-color: #e0e0e0; border: 1px solid #cccccc;")
+        left_background.setFrameShape(QFrame.StyledPanel)
+        left_layout.addWidget(left_background)
+    
+        # Добавляем фоновые элементы в правую часть (сетку)
+    
+        # Вариант 2: QLabel без текста
+        right_background1 = QFrame()
+        right_background1.setStyleSheet("background-color: #e0e0e0; border: 1px solid #cccccc;")
+        right_background1.setMinimumHeight(100)
+        right_layout.addWidget(right_background1, 0, 0)
+    
+        # Добавляем виджеты в сплиттер
+        splitter.addWidget(left_widget)
+        splitter.addWidget(right_widget)
+    
+        # Устанавливаем начальные размеры разделенных областей (в процентах)
+        splitter.setSizes([int(self.width() * 0.3), int(self.width() * 0.7)])
+    
+        # Добавляем сплиттер в лейаут
+        main_layout.addWidget(splitter)
+        
+    def createStatusBar(self):
+        # Создаем статусбар
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
+        
+        # Устанавливаем начальное сообщение
+        self.statusBar.showMessage(self.tr("Ready"))
+        
+        # Добавляем постоянные элементы в статусбар (справа)
+        version_label = QLabel("AudioDB v0.0.3")
+        self.statusBar.addPermanentWidget(version_label)
+
     def setDefaultWindowSize(self):
         # Получаем размер доступного экрана
         screen = QApplication.primaryScreen().availableGeometry()
@@ -126,6 +200,9 @@ class AudioDBMainWindow(QMainWindow):
         # Обновляем заголовок окна
         self.setWindowTitle(self.tr("AudioDB"))
         
+        # Обновляем статусбар
+        self.statusBar.showMessage(self.tr("Ready"))
+        
         # Обновляем меню
         menubar = self.menuBar()
         menus = menubar.findChildren(QMenu)
@@ -133,6 +210,23 @@ class AudioDBMainWindow(QMainWindow):
         # Очищаем и пересоздаем меню
         menubar.clear()
         self.createMenuBar()
+
+class CustomSplitter(QSplitter):
+    def __init__(self, orientation, min_width, parent=None):
+        super().__init__(orientation, parent)
+        self.snap_threshold = AudioDBMainWindow.SNAP_THRESHOLD
+        self.min_width = min_width
+        
+    def moveSplitter(self, pos, index):
+        if pos < self.snap_threshold:
+            # Snap to left edge
+            super().moveSplitter(0, index)
+        elif pos < 200 and pos >= self.snap_threshold:
+            # Prevent resizing below 200px
+            super().moveSplitter(200, index)
+        else:
+            # Normal splitter movement
+            super().moveSplitter(pos, index)
 
 # Запуск приложения
 if __name__ == "__main__":
